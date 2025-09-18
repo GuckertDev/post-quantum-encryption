@@ -1,0 +1,75 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        rust: [stable]
+        include:
+          - os: ubuntu-latest
+            rust: nightly
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.rust }}
+          components: rustfmt, clippy
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+      - name: Install cargo-deny
+        run: cargo install cargo-deny
+      - name: Run Tests
+        run: cargo test --verbose
+      - name: Run Clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+      - name: Check Formatting
+        run: cargo fmt -- --check
+      - name: Run Security Audit
+        run: cargo audit
+      - name: Run cargo-deny
+        run: cargo deny check
+      - name: Install tarpaulin
+        if: matrix.os == 'ubuntu-latest'
+        run: cargo install cargo-tarpaulin
+      - name: Generate Coverage
+        if: matrix.os == 'ubuntu-latest'
+        run: cargo tarpaulin --out Xml
+      - name: Upload Coverage
+        if: matrix.os == 'ubuntu-latest'
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./cobertura.xml
+          token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Generate Docs
+        if: matrix.os == 'ubuntu-latest'
+        run: cargo doc --no-deps
+      - name: Deploy Docs to GitHub Pages
+        if: matrix.os == 'ubuntu-latest' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./target/doc
+
+  scorecard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run OpenSSF Scorecard
+        uses: ossf/scorecard-action@v2
+        with:
+          args: --repo=${{ github.repository }}
+      - name: Upload Scorecard Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: scorecard-results
+          path: ./results.json

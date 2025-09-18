@@ -1,0 +1,14 @@
+# Rust-specific ignores
+/target/
+
+# Coverage reports
+*.html
+*.xml
+*.profraw
+tarpaulin-report.html
+
+# Operating System files
+.DS_Store
+
+# IDE files
+.vscode/

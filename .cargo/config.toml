@@ -1,0 +1,5 @@
+[env]
+OPENSSL_DIR = "/opt/homebrew/opt/openssl@3"
+OPENSSL_STATIC = "true"
+[net]
+git-fetch-with-cli = true
